@@ -15,7 +15,7 @@ import java.util.Properties;
 
 public class KafkaSubOrderDetailUtil {
     private static final String brokerList = "10.1.80.213:9092";
-    private static final String topic = "test";
+    public static final String ORDER_EXT_TOPIC_NAME = "test-example06";
 
 
     public static void main(String[] args) {
@@ -44,7 +44,7 @@ public class KafkaSubOrderDetailUtil {
         };
 
         while (true) {
-            for (int i = 1; i <= 2; i++) {
+            for (int i = 1; i <= 10; i++) {
                 Long siteId = RandomUtils.nextLong(97L, 100L);
                 Long cityId = RandomUtils.nextLong(1L,5L);
                 Long merchandiseId = RandomUtils.nextLong(1L,5L);
@@ -62,13 +62,20 @@ public class KafkaSubOrderDetailUtil {
                         .setPrice(merchandises.get(merchandiseId))
                         .setQuantity(RandomUtils.nextInt(1,10));
 
-                ProducerRecord record = new ProducerRecord<String, String>(ECommenceBigScreenExample.ORDER_EXT_TOPIC_NAME, null, null, JSON.toJSONString(subOrderDetail));
+                ProducerRecord record = new ProducerRecord<String, String>(ORDER_EXT_TOPIC_NAME, null, null, JSON.toJSONString(subOrderDetail));
+
+                // 模拟消息延迟
+                try {
+                    Thread.sleep(100L);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
                 producer.send(record);
                 System.out.println("发送数据: " + JSON.toJSONString(subOrderDetail));
             }
             producer.flush();
             try {
-                Thread.sleep(15000L);
+                Thread.sleep(5000L);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
