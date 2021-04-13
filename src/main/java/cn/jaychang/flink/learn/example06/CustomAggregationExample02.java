@@ -15,8 +15,14 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.triggers.ContinuousProcessingTimeTrigger;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
+import org.apache.flink.streaming.connectors.redis.RedisSink;
+import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisPoolConfig;
+import org.apache.flink.streaming.connectors.redis.common.mapper.RedisCommand;
+import org.apache.flink.streaming.connectors.redis.common.mapper.RedisCommandDescription;
+import org.apache.flink.streaming.connectors.redis.common.mapper.RedisMapper;
 
 import java.time.Duration;
 import java.util.Date;
@@ -59,15 +65,17 @@ public class CustomAggregationExample02 {
                 );
 
 
-        // 按照自然日来统计以下指标，并以1秒的刷新频率呈现在大屏上
+        // 按照自然日来统计以下指标，并以5秒的刷新频率呈现在大屏上
         WindowedStream<SubOrderDetail, Tuple1<Long>, TimeWindow> site30SecondsWindowStream = dataStream2.keyBy(value -> Tuple1.of(value.getSiteId()), Types.TUPLE(Types.LONG))
-                .window(TumblingEventTimeWindows.of(Time.seconds(15L)));
+               // .window(TumblingEventTimeWindows.of(Time.seconds(15L)));
+            .window(TumblingEventTimeWindows.of(Time.days(1L))).trigger(ContinuousProcessingTimeTrigger.of(Time.seconds(5L)));
 
         SingleOutputStreamOperator<OrderAggregationResult> siteAggStream = site30SecondsWindowStream.aggregate(new SubOrderDetailAggregateFunction())
                 .name("aggregate_site_order_gmv").uid("aggregate_site_order_gmv");
 
         siteAggStream.process(new OutputOrderGmvProcessFunc()).name("process_site_gmv_changed").uid("process_site_gmv_changed");
 
+        // 该Sink用于打印
         siteAggStream.addSink(new SinkFunction<OrderAggregationResult>() {
             @Override
             public void invoke(OrderAggregationResult value, Context context) throws Exception {
@@ -75,7 +83,33 @@ public class CustomAggregationExample02 {
             }
         });
 
+        // 该Sink用于将结果存redis
+        FlinkJedisPoolConfig conf = new FlinkJedisPoolConfig.Builder().setHost("10.1.80.70").setDatabase(4).build();
+        siteAggStream.addSink(new RedisSink<>(conf, new RedisExampleMapper()));
+
+
         env.execute("CustomAggregationExample02");
+    }
+
+
+    static class RedisExampleMapper implements RedisMapper<OrderAggregationResult> {
+        // REDIS KEY名前缀
+        private static final String  ORDER_AGGREGATION_RESULT_KEY_PREFIX = "ORDER_AGGREGATION_RESULT:";
+
+        @Override
+        public RedisCommandDescription getCommandDescription() {
+            return new RedisCommandDescription(RedisCommand.SET);
+        }
+
+        @Override
+        public String getKeyFromData(OrderAggregationResult orderAggregationResult) {
+            return ORDER_AGGREGATION_RESULT_KEY_PREFIX+orderAggregationResult.getSiteId();
+        }
+
+        @Override
+        public String getValueFromData(OrderAggregationResult orderAggregationResult) {
+            return JSON.toJSONString(orderAggregationResult);
+        }
     }
 
 

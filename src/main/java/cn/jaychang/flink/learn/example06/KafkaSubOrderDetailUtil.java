@@ -5,13 +5,11 @@ import cn.jaychang.flink.learn.common.model.SubOrderDetail;
 import com.alibaba.fastjson.JSON;
 import org.apache.commons.compress.utils.Lists;
 import org.apache.commons.lang3.RandomUtils;
+import org.apache.commons.lang3.time.DateFormatUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 public class KafkaSubOrderDetailUtil {
     private static final String brokerList = "10.1.80.213:9092";
@@ -71,7 +69,7 @@ public class KafkaSubOrderDetailUtil {
                     e.printStackTrace();
                 }
                 producer.send(record);
-                System.out.println("发送数据: " + JSON.toJSONString(subOrderDetail));
+                System.out.println(DateFormatUtils.format(new Date(),"yyyy-MM-dd HH:mm:ss")+" 发送数据: " + JSON.toJSONString(subOrderDetail));
             }
             producer.flush();
             try {
