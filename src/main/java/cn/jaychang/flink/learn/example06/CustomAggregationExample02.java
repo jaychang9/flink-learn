@@ -73,7 +73,7 @@ public class CustomAggregationExample02 {
         SingleOutputStreamOperator<OrderAggregationResult> siteAggStream = site30SecondsWindowStream.aggregate(new SubOrderDetailAggregateFunction())
                 .name("aggregate_site_order_gmv").uid("aggregate_site_order_gmv");
 
-        siteAggStream.process(new OutputOrderGmvProcessFunc()).name("process_site_gmv_changed").uid("process_site_gmv_changed");
+        //siteAggStream.process(new OutputOrderGmvProcessFunc()).name("process_site_gmv_changed").uid("process_site_gmv_changed");
 
         // 该Sink用于打印
         siteAggStream.addSink(new SinkFunction<OrderAggregationResult>() {
